@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: JSONPlaceholder API
+  description: Fake online REST API for testing and prototyping.
+  version: 1.0.0
+servers:
+  - url: https://jsonplaceholder.typicode.com
+paths:
+  /todos:
+    get:
+      operationId: listTodos
+      summary: List all todos
+      parameters:
+        - name: _limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A list of todos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+  /todos/{id}:
+    get:
+      operationId: getTodo
+      summary: Get a single todo by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A single todo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - userId
+        - id
+        - title
+        - completed
+      properties:
+        userId:
+          type: integer
+        id:
+          type: integer
+        title:
+          type: string
+        completed:
+          type: boolean
