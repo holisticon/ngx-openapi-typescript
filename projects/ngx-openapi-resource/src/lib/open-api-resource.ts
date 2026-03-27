@@ -27,8 +27,10 @@ type OpOf<Paths, Path extends keyof Paths, Method extends string> = Paths[Path] 
 
 /** Coerces the request object to a plain shape for URL building */
 function toRequestShape(req: unknown): {
-  path?: Record<string, string | number | boolean>;
-  query?: Record<string, string | number | boolean | null | undefined>;
+  params?: {
+    path?: Record<string, string | number | boolean>;
+    query?: Record<string, string | number | boolean | null | undefined>;
+  };
   body?: unknown;
   headers?: HttpHeaders | Record<string, string | ReadonlyArray<string>>;
   context?: HttpContext;
@@ -50,11 +52,11 @@ function toRequestShape(req: unknown): {
  * const api = createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' });
  *
  * // Reactive GET resource
- * const pets = api.get('/pets', () => ({ query: { limit: 10 } }));
+ * const pets = api.get('/pets', () => ({ params: { query: { limit: 10 } } }));
  *
  * // GET with path params (signal-driven)
  * const petId = signal(1);
- * const pet = api.get('/pets/{petId}', () => ({ path: { petId: petId() } }));
+ * const pet = api.get('/pets/{petId}', () => ({ params: { path: { petId: petId() } } }));
  * ```
  */
 export function createOpenApiResource<Paths extends PathRecord>(
@@ -83,8 +85,8 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: _buildUrl(baseUrl, String(path), r.path),
-            params: _toHttpParams(r.query),
+            url: _buildUrl(baseUrl, String(path), r.params?.path),
+            params: _toHttpParams(r.params?.query),
             headers: r.headers,
             context: r.context,
             withCredentials: r.withCredentials,
@@ -113,10 +115,10 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: _buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.params?.path),
             method: 'POST',
             body: r.body,
-            params: _toHttpParams(r.query),
+            params: _toHttpParams(r.params?.query),
             headers: r.headers,
             context: r.context,
             withCredentials: r.withCredentials,
@@ -145,10 +147,10 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: _buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.params?.path),
             method: 'PUT',
             body: r.body,
-            params: _toHttpParams(r.query),
+            params: _toHttpParams(r.params?.query),
             headers: r.headers,
             context: r.context,
             withCredentials: r.withCredentials,
@@ -177,10 +179,10 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: _buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.params?.path),
             method: 'PATCH',
             body: r.body,
-            params: _toHttpParams(r.query),
+            params: _toHttpParams(r.params?.query),
             headers: r.headers,
             context: r.context,
             withCredentials: r.withCredentials,
@@ -211,10 +213,10 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: _buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.params?.path),
             method: 'DELETE',
             body: r.body,
-            params: _toHttpParams(r.query),
+            params: _toHttpParams(r.params?.query),
             headers: r.headers,
             context: r.context,
             withCredentials: r.withCredentials,

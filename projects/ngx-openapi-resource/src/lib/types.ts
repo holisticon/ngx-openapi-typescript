@@ -49,8 +49,8 @@ type ParamEntry<K extends string, T> = [T] extends [never]
     ? { [P in K]: T }
     : { [P in K]?: T };
 
-/** Combined path and query parameters for an OpenAPI operation */
-export type OperationParameters<Op> = ParamEntry<'path', PathParameters<Op>> &
+/** Inner `{ path?, query? }` object for an OpenAPI operation */
+export type OperationParamsObject<Op> = ParamEntry<'path', PathParameters<Op>> &
   ParamEntry<'query', QueryParameters<Op>>;
 
 /** Request body type for an OpenAPI operation */
@@ -68,6 +68,6 @@ export interface OpenApiRequestOptions {
 }
 
 /** Full typed request for an OpenAPI operation */
-export type OpenApiOperationRequest<Op> = OperationParameters<Op> &
+export type OpenApiOperationRequest<Op> = ParamEntry<'params', OperationParamsObject<Op>> &
   OperationBody<Op> &
   OpenApiRequestOptions;

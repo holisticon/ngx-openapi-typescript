@@ -8,8 +8,6 @@ import type {
 } from 'openapi-typescript-helpers';
 import type {
   OpenApiOperationRequest,
-  OpenApiRequestOptions,
-  OperationParameters,
   PathRecord,
 } from './types';
 import { buildUrl, toHttpParams } from './url-utils';
@@ -29,8 +27,10 @@ type OpOf<Paths, Path extends keyof Paths, Method extends string> = Paths[Path] 
 
 /** Coerces the options to a plain shape */
 function toShape(opts: unknown): {
-  path?: Record<string, string | number | boolean>;
-  query?: Record<string, string | number | boolean | null | undefined>;
+  params?: {
+    path?: Record<string, string | number | boolean>;
+    query?: Record<string, string | number | boolean | null | undefined>;
+  };
   body?: unknown;
   headers?: HttpHeaders | Record<string, string | ReadonlyArray<string>>;
   context?: HttpContext;
@@ -50,7 +50,7 @@ function buildOptions(r: ReturnType<typeof toShape>): {
   return {
     responseType: 'json',
     observe: 'body',
-    params: toHttpParams(r.query),
+    params: toHttpParams(r.params?.query),
     // Cast needed: our public API allows ReadonlyArray<string> (consistent with httpResource),
     // but Angular HttpClient methods require string[].
     headers: r.headers as HttpHeaders | Record<string, string | string[]> | undefined,
@@ -99,16 +99,16 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
    *
    * @example
    * ```ts
-   * client.get('/pets', { query: { limit: 10 } }).subscribe(pets => console.log(pets));
+   * client.get('/pets', { params: { query: { limit: 10 } } }).subscribe(pets => console.log(pets));
    * ```
    */
   get<Path extends PathsWithMethod<Paths, 'get'> & keyof Paths>(
     path: Path,
-    options?: OperationParameters<NonNullable<OpOf<Paths, Path, 'get'>>> & OpenApiRequestOptions,
+    options?: OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'get'>>>,
   ): Observable<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>> {
     const r = toShape(options);
     return this.http.get<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>>(
-      buildUrl(this.baseUrl, String(path), r.path),
+      buildUrl(this.baseUrl, String(path), r.params?.path),
       buildOptions(r),
     );
   }
@@ -122,7 +122,7 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
   ): Observable<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'post'>>>> {
     const r = toShape(options);
     return this.http.post<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'post'>>>>(
-      buildUrl(this.baseUrl, String(path), r.path),
+      buildUrl(this.baseUrl, String(path), r.params?.path),
       r.body as RequestBodyJSON<NonNullable<OpOf<Paths, Path, 'post'>>>,
       buildOptions(r),
     );
@@ -137,7 +137,7 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
   ): Observable<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'put'>>>> {
     const r = toShape(options);
     return this.http.put<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'put'>>>>(
-      buildUrl(this.baseUrl, String(path), r.path),
+      buildUrl(this.baseUrl, String(path), r.params?.path),
       r.body as RequestBodyJSON<NonNullable<OpOf<Paths, Path, 'put'>>>,
       buildOptions(r),
     );
@@ -152,7 +152,7 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
   ): Observable<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'patch'>>>> {
     const r = toShape(options);
     return this.http.patch<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'patch'>>>>(
-      buildUrl(this.baseUrl, String(path), r.path),
+      buildUrl(this.baseUrl, String(path), r.params?.path),
       r.body as RequestBodyJSON<NonNullable<OpOf<Paths, Path, 'patch'>>>,
       buildOptions(r),
     );
@@ -173,7 +173,7 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
     }
 
     return this.http.delete<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>>(
-      buildUrl(this.baseUrl, String(path), r.path),
+      buildUrl(this.baseUrl, String(path), r.params?.path),
       httpOptions,
     );
   }

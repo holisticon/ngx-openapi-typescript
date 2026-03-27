@@ -14,7 +14,8 @@ export interface paths {
         /** List all todos */
         get: operations["listTodos"];
         put?: never;
-        post?: never;
+        /** Create a new todo */
+        post: operations["createTodo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -30,9 +31,11 @@ export interface paths {
         };
         /** Get a single todo by ID */
         get: operations["getTodo"];
-        put?: never;
+        /** Update a todo */
+        put: operations["updateTodo"];
         post?: never;
-        delete?: never;
+        /** Delete a todo */
+        delete: operations["deleteTodo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -47,6 +50,11 @@ export interface components {
             id: number;
             title: string;
             completed: boolean;
+        };
+        NewTodo: {
+            title: string;
+            completed?: boolean;
+            userId: number;
         };
     };
     responses: never;
@@ -79,6 +87,30 @@ export interface operations {
             };
         };
     };
+    createTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewTodo"];
+            };
+        };
+        responses: {
+            /** @description The created todo */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Todo"];
+                };
+            };
+        };
+    };
     getTodo: {
         parameters: {
             query?: never;
@@ -98,6 +130,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Todo"];
                 };
+            };
+        };
+    };
+    updateTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewTodo"];
+            };
+        };
+        responses: {
+            /** @description The updated todo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Todo"];
+                };
+            };
+        };
+    };
+    deleteTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Todo deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

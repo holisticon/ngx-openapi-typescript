@@ -12,7 +12,7 @@ export type {
   PathRecord,
   PathParameters,
   QueryParameters,
-  OperationParameters,
+  OperationParamsObject,
   OperationBody,
   OpenApiOperationRequest,
   OpenApiRequestOptions,

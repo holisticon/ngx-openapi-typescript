@@ -160,7 +160,7 @@ describe('OpenApiHttpClient', () => {
   });
 
   it('GET /pets with query params', () => {
-    client.get('/pets', { query: { limit: 5 } }).subscribe();
+    client.get('/pets', { params: { query: { limit: 5 } } }).subscribe();
     const req = httpTesting.expectOne(
       (r) =>
         r.url === 'https://api.example.com/pets' && r.params.get('limit') === '5',
@@ -171,7 +171,7 @@ describe('OpenApiHttpClient', () => {
 
   it('GET /pets/{petId} substitutes path param', () => {
     const mockPet: Pet = { id: 42, name: 'Rex' };
-    client.get('/pets/{petId}', { path: { petId: 42 } }).subscribe((pet) => {
+    client.get('/pets/{petId}', { params: { path: { petId: 42 } } }).subscribe((pet) => {
       expect(pet).toEqual(mockPet);
     });
     const req = httpTesting.expectOne('https://api.example.com/pets/42');
@@ -194,7 +194,7 @@ describe('OpenApiHttpClient', () => {
   it('PUT /pets/{petId} sends body and substitutes path param', () => {
     const updated: Pet = { id: 1, name: 'Fido Updated' };
     client
-      .put('/pets/{petId}', { path: { petId: 1 }, body: { name: 'Fido Updated' } })
+      .put('/pets/{petId}', { params: { path: { petId: 1 } }, body: { name: 'Fido Updated' } })
       .subscribe((pet) => expect(pet).toEqual(updated));
     const req = httpTesting.expectOne('https://api.example.com/pets/1');
     expect(req.request.method).toBe('PUT');
@@ -202,7 +202,7 @@ describe('OpenApiHttpClient', () => {
   });
 
   it('DELETE /pets/{petId} makes a DELETE request', () => {
-    client.delete('/pets/{petId}', { path: { petId: 1 } }).subscribe();
+    client.delete('/pets/{petId}', { params: { path: { petId: 1 } } }).subscribe();
     const req = httpTesting.expectOne('https://api.example.com/pets/1');
     expect(req.request.method).toBe('DELETE');
     req.flush(null);
@@ -242,7 +242,7 @@ describe('createOpenApiResource', () => {
     );
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets', () => ({ query: { limit: 5 } })),
+      api.get('/pets', () => ({ params: { query: { limit: 5 } } })),
     );
 
     TestBed.tick();
@@ -259,7 +259,7 @@ describe('createOpenApiResource', () => {
     );
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets/{petId}', () => ({ path: { petId: 42 } })),
+      api.get('/pets/{petId}', () => ({ params: { path: { petId: 42 } } })),
     );
 
     TestBed.tick();
@@ -307,7 +307,7 @@ describe('createOpenApiResource', () => {
     const petId = signal(1);
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets/{petId}', () => ({ path: { petId: petId() } })),
+      api.get('/pets/{petId}', () => ({ params: { path: { petId: petId() } } })),
     );
 
     TestBed.tick();

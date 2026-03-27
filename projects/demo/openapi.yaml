@@ -25,6 +25,22 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Todo'
+    post:
+      operationId: createTodo
+      summary: Create a new todo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTodo'
+      responses:
+        '201':
+          description: The created todo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
   /todos/{id}:
     get:
       operationId: getTodo
@@ -42,6 +58,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Todo'
+    put:
+      operationId: updateTodo
+      summary: Update a todo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTodo'
+      responses:
+        '200':
+          description: The updated todo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+    delete:
+      operationId: deleteTodo
+      summary: Delete a todo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Todo deleted
 components:
   schemas:
     Todo:
@@ -60,3 +110,15 @@ components:
           type: string
         completed:
           type: boolean
+    NewTodo:
+      type: object
+      required:
+        - title
+        - userId
+      properties:
+        title:
+          type: string
+        completed:
+          type: boolean
+        userId:
+          type: integer
