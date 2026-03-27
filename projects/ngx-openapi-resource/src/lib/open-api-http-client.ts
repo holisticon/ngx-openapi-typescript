@@ -12,7 +12,7 @@ import type {
   OperationParameters,
   PathRecord,
 } from './types';
-import { buildUrl, toHttpParams } from './open-api-resource';
+import { buildUrl, toHttpParams } from './url-utils';
 
 /** Configuration for `OpenApiHttpClient` */
 export interface OpenApiHttpClientConfig {
@@ -163,13 +163,18 @@ export class OpenApiHttpClient<Paths extends PathRecord> {
    */
   delete<Path extends PathsWithMethod<Paths, 'delete'> & keyof Paths>(
     path: Path,
-    options?: OperationParameters<NonNullable<OpOf<Paths, Path, 'delete'>>> &
-      OpenApiRequestOptions,
+    options?: OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'delete'>>>,
   ): Observable<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>> {
     const r = toShape(options);
+    const httpOptions = buildOptions(r) as { body?: unknown } & ReturnType<typeof buildOptions>;
+
+    if (r.body !== undefined) {
+      httpOptions.body = r.body as RequestBodyJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>;
+    }
+
     return this.http.delete<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>>(
       buildUrl(this.baseUrl, String(path), r.path),
-      buildOptions(r),
+      httpOptions,
     );
   }
 }

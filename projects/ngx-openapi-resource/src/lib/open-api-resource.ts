@@ -1,53 +1,21 @@
 import {
-  HttpParams,
+  HttpContext,
+  HttpHeaders,
   HttpResourceOptions,
   HttpResourceRef,
   httpResource,
 } from '@angular/common/http';
 import type { PathsWithMethod, SuccessResponseJSON } from 'openapi-typescript-helpers';
 import type { OpenApiOperationRequest, PathRecord } from './types';
+import { buildUrl as _buildUrl, toHttpParams as _toHttpParams } from './url-utils';
+
+// Re-export helpers so consumers and tests can import them from this module.
+export { buildUrl, toHttpParams } from './url-utils';
 
 /** Configuration for creating an OpenAPI resource factory */
 export interface OpenApiResourceConfig {
   /** Base URL to prepend to all resource paths */
   baseUrl?: string;
-}
-
-/** Builds a full URL by substituting path parameters into the path template */
-export function buildUrl(
-  baseUrl: string,
-  path: string,
-  pathParams?: Record<string, string | number | boolean>,
-): string {
-  let url = baseUrl + path;
-  if (pathParams) {
-    for (const [key, value] of Object.entries(pathParams)) {
-      url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
-    }
-  }
-  return url;
-}
-
-/** Converts a query parameter map to an `HttpParams` instance */
-export function toHttpParams(
-  query?: Record<
-    string,
-    string | number | boolean | ReadonlyArray<string | number | boolean> | null | undefined
-  >,
-): HttpParams | undefined {
-  if (!query) return undefined;
-  let params = new HttpParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) {
-        params = params.append(key, String(v));
-      }
-    } else {
-      params = params.set(key, String(value));
-    }
-  }
-  return params;
 }
 
 /** Extracts the operation type for a given path and method */
@@ -62,8 +30,8 @@ function toRequestShape(req: unknown): {
   path?: Record<string, string | number | boolean>;
   query?: Record<string, string | number | boolean | null | undefined>;
   body?: unknown;
-  headers?: unknown;
-  context?: unknown;
+  headers?: HttpHeaders | Record<string, string | ReadonlyArray<string>>;
+  context?: HttpContext;
   withCredentials?: boolean;
 } {
   return ((req ?? {}) as ReturnType<typeof toRequestShape>);
@@ -115,10 +83,10 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: buildUrl(baseUrl, String(path), r.path),
-            params: toHttpParams(r.query),
-            headers: r.headers as Record<string, string>,
-            context: r.context as import('@angular/common/http').HttpContext,
+            url: _buildUrl(baseUrl, String(path), r.path),
+            params: _toHttpParams(r.query),
+            headers: r.headers,
+            context: r.context,
             withCredentials: r.withCredentials,
           };
         },
@@ -145,12 +113,12 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.path),
             method: 'POST',
             body: r.body,
-            params: toHttpParams(r.query),
-            headers: r.headers as Record<string, string>,
-            context: r.context as import('@angular/common/http').HttpContext,
+            params: _toHttpParams(r.query),
+            headers: r.headers,
+            context: r.context,
             withCredentials: r.withCredentials,
           };
         },
@@ -177,12 +145,12 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.path),
             method: 'PUT',
             body: r.body,
-            params: toHttpParams(r.query),
-            headers: r.headers as Record<string, string>,
-            context: r.context as import('@angular/common/http').HttpContext,
+            params: _toHttpParams(r.query),
+            headers: r.headers,
+            context: r.context,
             withCredentials: r.withCredentials,
           };
         },
@@ -209,12 +177,12 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.path),
             method: 'PATCH',
             body: r.body,
-            params: toHttpParams(r.query),
-            headers: r.headers as Record<string, string>,
-            context: r.context as import('@angular/common/http').HttpContext,
+            params: _toHttpParams(r.query),
+            headers: r.headers,
+            context: r.context,
             withCredentials: r.withCredentials,
           };
         },
@@ -243,12 +211,12 @@ export function createOpenApiResource<Paths extends PathRecord>(
           if (req === undefined) return undefined;
           const r = toRequestShape(req);
           return {
-            url: buildUrl(baseUrl, String(path), r.path),
+            url: _buildUrl(baseUrl, String(path), r.path),
             method: 'DELETE',
             body: r.body,
-            params: toHttpParams(r.query),
-            headers: r.headers as Record<string, string>,
-            context: r.context as import('@angular/common/http').HttpContext,
+            params: _toHttpParams(r.query),
+            headers: r.headers,
+            context: r.context,
             withCredentials: r.withCredentials,
           };
         },
