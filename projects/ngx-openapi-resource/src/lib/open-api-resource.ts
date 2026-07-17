@@ -6,7 +6,7 @@ import {
   httpResource,
 } from '@angular/common/http';
 import type { PathsWithMethod, SuccessResponseJSON } from 'openapi-typescript-helpers';
-import type { OpenApiOperationRequest, PathRecord } from './types';
+import type { HttpMethod, OpenApiOperationRequest, PathRecord } from './types';
 import { buildUrl as _buildUrl, toHttpParams as _toHttpParams } from './url-utils';
 
 // Re-export helpers so consumers and tests can import them from this module.
@@ -17,6 +17,12 @@ export interface OpenApiResourceConfig {
   /** Base URL to prepend to all resource paths */
   baseUrl?: string;
 }
+
+/** Options for the resource call, extending Angular's HttpResourceOptions with an optional HTTP method */
+export type OpenApiResourceCallOptions<TValue, TError = unknown> = HttpResourceOptions<
+  TValue,
+  TError
+> & { method?: HttpMethod };
 
 /** Extracts the operation type for a given path and method */
 type OpOf<Paths, Path extends keyof Paths, Method extends string> = Paths[Path] extends {
@@ -39,11 +45,52 @@ function toRequestShape(req: unknown): {
   return ((req ?? {}) as ReturnType<typeof toRequestShape>);
 }
 
+/** Extract which HTTP methods a given path supports */
+type MethodsOfPath<Paths, Path extends keyof Paths> = {
+  [M in HttpMethod]: Paths[Path] extends { [K in M]: unknown } ? M : never;
+}[HttpMethod];
+
+/** The callable type returned by `createOpenApiResource` */
+export interface OpenApiResourceFactory<Paths extends PathRecord> {
+  /**
+   * Creates a reactive resource for an OpenAPI endpoint with an explicit HTTP method.
+   *
+   * The `method` option is restricted to the methods the given path supports.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, Method>>> | undefined,
+    options: OpenApiResourceCallOptions<
+      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>>,
+      unknown
+    > & { method: Method },
+  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>> | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint (default).
+   *
+   * The resource re-fetches automatically when the signals read inside `requestFn` change.
+   * When `requestFn` returns `undefined` the resource is put into the Idle state.
+   */
+  <Path extends PathsWithMethod<Paths, 'get'> & keyof Paths>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined,
+    options?: HttpResourceOptions<
+      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
+      unknown
+    >,
+  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined>;
+}
+
 /**
- * Creates a type-safe factory for Angular `httpResource`s backed by an OpenAPI schema.
+ * Creates a type-safe callable factory for Angular `httpResource`s backed by an OpenAPI schema.
  *
  * Must be called inside an Angular injection context (e.g. component/service field initializer
- * or constructor), because the returned methods use `httpResource` internally.
+ * or constructor), because the returned function uses `httpResource` internally.
+ *
+ * The returned function defaults to GET. Pass `{ method: 'post' }` (or other method) in the
+ * options to use a different HTTP method. Note: Angular recommends using `httpResource` only
+ * for reads; prefer `OpenApiHttpClient` for mutations.
  *
  * @example
  * ```ts
@@ -51,184 +98,41 @@ function toRequestShape(req: unknown): {
  *
  * const api = createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' });
  *
- * // Reactive GET resource
- * const pets = api.get('/pets', () => ({ params: { query: { limit: 10 } } }));
+ * // Reactive GET resource (default)
+ * const pets = api('/pets', () => ({ params: { query: { limit: 10 } } }));
  *
  * // GET with path params (signal-driven)
  * const petId = signal(1);
- * const pet = api.get('/pets/{petId}', () => ({ params: { path: { petId: petId() } } }));
+ * const pet = api('/pets/{petId}', () => ({ params: { path: { petId: petId() } } }));
+ *
+ * // Explicit method override (prefer OpenApiHttpClient for mutations)
+ * const created = api('/pets', () => ({ body: { name: 'Buddy' } }), { method: 'post' });
  * ```
  */
 export function createOpenApiResource<Paths extends PathRecord>(
   config?: OpenApiResourceConfig,
-) {
+): OpenApiResourceFactory<Paths> {
   const baseUrl = config?.baseUrl ?? '';
 
-  return {
-    /**
-     * Creates a reactive GET resource for an OpenAPI endpoint.
-     *
-     * The resource re-fetches automatically when the signals read inside `requestFn` change.
-     * When `requestFn` returns `undefined` the resource is put into the Idle state.
-     */
-    get<Path extends PathsWithMethod<Paths, 'get'> & keyof Paths>(
-      path: Path,
-      requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined,
-      options?: HttpResourceOptions<
-        SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
-        unknown
-      >,
-    ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined> {
-      return httpResource<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>>(
-        () => {
-          const req = requestFn();
-          if (req === undefined) return undefined;
-          const r = toRequestShape(req);
-          return {
-            url: _buildUrl(baseUrl, String(path), r.params?.path),
-            params: _toHttpParams(r.params?.query),
-            headers: r.headers,
-            context: r.context,
-            withCredentials: r.withCredentials,
-          };
-        },
-        options,
-      );
-    },
+  return ((path: string, requestFn: () => unknown | undefined, options?: OpenApiResourceCallOptions<unknown>) => {
+    const method = (options?.method ?? 'get').toUpperCase();
 
-    /**
-     * Creates a reactive POST resource for an OpenAPI endpoint.
-     */
-    post<Path extends PathsWithMethod<Paths, 'post'> & keyof Paths>(
-      path: Path,
-      requestFn: () =>
-        | OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'post'>>>
-        | undefined,
-      options?: HttpResourceOptions<
-        SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'post'>>>,
-        unknown
-      >,
-    ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'post'>>> | undefined> {
-      return httpResource<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'post'>>>>(
-        () => {
-          const req = requestFn();
-          if (req === undefined) return undefined;
-          const r = toRequestShape(req);
-          return {
-            url: _buildUrl(baseUrl, String(path), r.params?.path),
-            method: 'POST',
-            body: r.body,
-            params: _toHttpParams(r.params?.query),
-            headers: r.headers,
-            context: r.context,
-            withCredentials: r.withCredentials,
-          };
-        },
-        options,
-      );
-    },
-
-    /**
-     * Creates a reactive PUT resource for an OpenAPI endpoint.
-     */
-    put<Path extends PathsWithMethod<Paths, 'put'> & keyof Paths>(
-      path: Path,
-      requestFn: () =>
-        | OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'put'>>>
-        | undefined,
-      options?: HttpResourceOptions<
-        SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'put'>>>,
-        unknown
-      >,
-    ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'put'>>> | undefined> {
-      return httpResource<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'put'>>>>(
-        () => {
-          const req = requestFn();
-          if (req === undefined) return undefined;
-          const r = toRequestShape(req);
-          return {
-            url: _buildUrl(baseUrl, String(path), r.params?.path),
-            method: 'PUT',
-            body: r.body,
-            params: _toHttpParams(r.params?.query),
-            headers: r.headers,
-            context: r.context,
-            withCredentials: r.withCredentials,
-          };
-        },
-        options,
-      );
-    },
-
-    /**
-     * Creates a reactive PATCH resource for an OpenAPI endpoint.
-     */
-    patch<Path extends PathsWithMethod<Paths, 'patch'> & keyof Paths>(
-      path: Path,
-      requestFn: () =>
-        | OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'patch'>>>
-        | undefined,
-      options?: HttpResourceOptions<
-        SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'patch'>>>,
-        unknown
-      >,
-    ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'patch'>>> | undefined> {
-      return httpResource<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'patch'>>>>(
-        () => {
-          const req = requestFn();
-          if (req === undefined) return undefined;
-          const r = toRequestShape(req);
-          return {
-            url: _buildUrl(baseUrl, String(path), r.params?.path),
-            method: 'PATCH',
-            body: r.body,
-            params: _toHttpParams(r.params?.query),
-            headers: r.headers,
-            context: r.context,
-            withCredentials: r.withCredentials,
-          };
-        },
-        options,
-      );
-    },
-
-    /**
-     * Creates a reactive DELETE resource for an OpenAPI endpoint.
-     */
-    delete<Path extends PathsWithMethod<Paths, 'delete'> & keyof Paths>(
-      path: Path,
-      requestFn: () =>
-        | OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'delete'>>>
-        | undefined,
-      options?: HttpResourceOptions<
-        SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>,
-        unknown
-      >,
-    ): HttpResourceRef<
-      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>> | undefined
-    > {
-      return httpResource<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'delete'>>>>(
-        () => {
-          const req = requestFn();
-          if (req === undefined) return undefined;
-          const r = toRequestShape(req);
-          return {
-            url: _buildUrl(baseUrl, String(path), r.params?.path),
-            method: 'DELETE',
-            body: r.body,
-            params: _toHttpParams(r.params?.query),
-            headers: r.headers,
-            context: r.context,
-            withCredentials: r.withCredentials,
-          };
-        },
-        options,
-      );
-    },
-  };
+    return httpResource(
+      () => {
+        const req = requestFn();
+        if (req === undefined) return undefined;
+        const r = toRequestShape(req);
+        return {
+          url: _buildUrl(baseUrl, path, r.params?.path),
+          method,
+          body: r.body,
+          params: _toHttpParams(r.params?.query),
+          headers: r.headers,
+          context: r.context,
+          withCredentials: r.withCredentials,
+        };
+      },
+      options,
+    );
+  }) as OpenApiResourceFactory<Paths>;
 }
-
-/** The return type of `createOpenApiResource` */
-export type OpenApiResourceFactory<Paths extends PathRecord> = ReturnType<
-  typeof createOpenApiResource<Paths>
->;

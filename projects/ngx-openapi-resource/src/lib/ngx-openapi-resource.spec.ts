@@ -1,13 +1,12 @@
-import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { createOpenApiResource } from './open-api-resource';
+import { TestBed } from '@angular/core/testing';
 import { OpenApiHttpClient } from './open-api-http-client';
-import { buildUrl, toHttpParams } from './open-api-resource';
+import { buildUrl, createOpenApiResource, toHttpParams } from './open-api-resource';
 
 // Minimal test schema (mirrors openapi-typescript generated types)
 interface paths {
@@ -228,7 +227,7 @@ describe('createOpenApiResource', () => {
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
 
-    TestBed.runInInjectionContext(() => api.get('/pets', () => ({})));
+    TestBed.runInInjectionContext(() => api('/pets', () => ({})));
 
     TestBed.tick();
     const req = httpTesting.expectOne('https://api.example.com/pets');
@@ -242,7 +241,7 @@ describe('createOpenApiResource', () => {
     );
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets', () => ({ params: { query: { limit: 5 } } })),
+      api('/pets', () => ({ params: { query: { limit: 5 } } })),
     );
 
     TestBed.tick();
@@ -259,7 +258,7 @@ describe('createOpenApiResource', () => {
     );
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets/{petId}', () => ({ params: { path: { petId: 42 } } })),
+      api('/pets/{petId}', () => ({ params: { path: { petId: 42 } } })),
     );
 
     TestBed.tick();
@@ -275,7 +274,7 @@ describe('createOpenApiResource', () => {
 
     const enabled = signal(false);
     const resource = TestBed.runInInjectionContext(() =>
-      api.get('/pets', () => (enabled() ? {} : undefined)),
+      api('/pets', () => (enabled() ? {} : undefined)),
     );
 
     TestBed.tick();
@@ -290,7 +289,7 @@ describe('createOpenApiResource', () => {
     const newPet: NewPet = { name: 'Buddy' };
 
     TestBed.runInInjectionContext(() =>
-      api.post('/pets', () => ({ body: newPet })),
+      api('/pets', () => ({ body: newPet }), { method: 'post' }),
     );
 
     TestBed.tick();
@@ -307,7 +306,7 @@ describe('createOpenApiResource', () => {
     const petId = signal(1);
 
     TestBed.runInInjectionContext(() =>
-      api.get('/pets/{petId}', () => ({ params: { path: { petId: petId() } } })),
+      api('/pets/{petId}', () => ({ params: { path: { petId: petId() } } })),
     );
 
     TestBed.tick();

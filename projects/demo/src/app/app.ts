@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
 import { createOpenApiResource, OpenApiHttpClient } from 'ngx-openapi-resource';
 import { components, paths } from './api.types';
 
@@ -104,7 +104,7 @@ export class App {
   });
 
   /** Reactive resource: fetches the first 5 todos automatically */
-  protected readonly todos = this.api.get('/todos', () => ({
+  protected readonly todos = this.api('/todos', () => ({
     params: { query: { _limit: 5 } },
   }));
 
@@ -112,21 +112,14 @@ export class App {
   protected readonly titleInput = signal('');
   private readonly pendingNewTodo = signal<NewTodo | null>(null);
 
-  protected readonly createTodoResult = this.api.post(
+  protected readonly createTodoResult = this.api(
     '/todos',
     () => {
       const body = this.pendingNewTodo();
       return body ? { body } : undefined;
     },
+    { method: 'post' },
   );
-
-  private readonly createTodoEffect = effect(() => {
-    if (this.createTodoResult.value() !== undefined && this.pendingNewTodo() !== null) {
-      this.pendingNewTodo.set(null);
-      this.titleInput.set('');
-      this.todos.reload();
-    }
-  });
 
   protected submitNewTodo(event: Event): void {
     event.preventDefault();
@@ -143,6 +136,16 @@ export class App {
   protected readonly singleTodo = signal<Todo | null>(null);
   protected readonly updatedTodo = signal<Todo | null>(null);
   protected readonly deleteStatus = signal<string | null>(null);
+
+  constructor() {
+    effect(() => {
+      if (this.createTodoResult.value() !== undefined && this.pendingNewTodo() !== null) {
+        this.pendingNewTodo.set(null);
+        this.titleInput.set('');
+        this.todos.reload();
+      }
+    })
+  }
 
   protected loadTodo(id: number): void {
     this.client
