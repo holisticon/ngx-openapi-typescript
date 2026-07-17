@@ -49,7 +49,6 @@ import { createOpenApiResource } from 'ngx-openapi-typescript';
 
 @Component({ ... })
 export class PetListComponent {
-  // Set up once per component/service
   private readonly api = createOpenApiResource<paths>({
     baseUrl: 'https://api.example.com',
   });

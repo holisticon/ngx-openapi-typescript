@@ -1,6 +1,29 @@
 {
   "name": "ngx-openapi-typescript",
   "version": "0.0.1",
+  "description": "Type-safe Angular httpResource and HttpClient backed by openapi-typescript",
+  "keywords": [
+    "angular",
+    "openapi",
+    "typescript",
+    "http-client",
+    "signals",
+    "type-safe",
+    "resource",
+    "reactive"
+  ],
+  "author": {
+    "name": "Marvin Luchs",
+    "email": "marvin.luchs@holisticon.de"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/holisticon/ngx-openapi-typescript"
+  },
+  "homepage": "https://github.com/holisticon/ngx-openapi-typescript",
+  "bugs": {
+    "url": "https://github.com/holisticon/ngx-openapi-typescript/issues"
+  },
   "peerDependencies": {
     "@angular/common": "^21.2.0 || ^22.0.0",
     "@angular/core": "^21.2.0 || ^22.0.0",
