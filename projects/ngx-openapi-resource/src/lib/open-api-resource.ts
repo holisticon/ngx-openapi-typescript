@@ -6,7 +6,7 @@ import {
   httpResource,
 } from '@angular/common/http';
 import type { PathsWithMethod, SuccessResponseJSON } from 'openapi-typescript-helpers';
-import type { HttpMethod, OpenApiOperationRequest, PathRecord } from './types';
+import type { HasRequiredKeys, HttpMethod, OpenApiOperationRequest, PathRecord } from './types';
 import { buildUrl as _buildUrl, toHttpParams as _toHttpParams } from './url-utils';
 
 // Re-export helpers so consumers and tests can import them from this module.
@@ -50,6 +50,18 @@ type MethodsOfPath<Paths, Path extends keyof Paths> = {
   [M in HttpMethod]: Paths[Path] extends { [K in M]: unknown } ? M : never;
 }[HttpMethod];
 
+/**
+ * Narrows to only those paths (for the given method) where the full request object
+ * has no required keys — i.e. `requestFn` can be safely omitted.
+ */
+type PathsWithOptionalRequest<Paths extends PathRecord, Method extends HttpMethod> = {
+  [P in PathsWithMethod<Paths, Method> & keyof Paths]: HasRequiredKeys<
+    OpenApiOperationRequest<NonNullable<OpOf<Paths, P, Method>>>
+  > extends true
+  ? never
+  : P;
+}[PathsWithMethod<Paths, Method> & keyof Paths];
+
 /** The callable type returned by `createOpenApiResource` */
 export interface OpenApiResource<Paths extends PathRecord> {
   /**
@@ -75,6 +87,31 @@ export interface OpenApiResource<Paths extends PathRecord> {
   <Path extends PathsWithMethod<Paths, 'get'> & keyof Paths>(
     path: Path,
     requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined,
+    options?: HttpResourceOptions<
+      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
+      unknown
+    >,
+  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined>;
+
+  /**
+   * Creates a reactive resource for an OpenAPI endpoint with an explicit HTTP method,
+   * omitting `requestFn`. Only available when the operation has no required parameters or body.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>>(
+    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
+    options: OpenApiResourceCallOptions<
+      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>>,
+      unknown
+    > & { method: Method },
+  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>> | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint, omitting `requestFn`.
+   * Only available when the operation has no required parameters or body.
+   * The resource fetches immediately and always stays active.
+   */
+  <Path extends PathsWithOptionalRequest<Paths, 'get'>>(
+    path: Path,
     options?: HttpResourceOptions<
       SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
       unknown
@@ -114,7 +151,14 @@ export function createOpenApiResource<Paths extends PathRecord>(
 ): OpenApiResource<Paths> {
   const baseUrl = config?.baseUrl ?? '';
 
-  return ((path: string, requestFn: () => unknown | undefined, options?: OpenApiResourceCallOptions<unknown>) => {
+  return ((
+    path: string,
+    reqFnOrOpts?: (() => unknown) | OpenApiResourceCallOptions<unknown>,
+    maybeOpts?: OpenApiResourceCallOptions<unknown>,
+  ) => {
+    const hasRequestFn = typeof reqFnOrOpts === 'function';
+    const requestFn = hasRequestFn ? reqFnOrOpts : () => ({});
+    const options = hasRequestFn ? maybeOpts : (reqFnOrOpts as OpenApiResourceCallOptions<unknown> | undefined);
     const method = (options?.method ?? 'get').toUpperCase();
 
     return httpResource(

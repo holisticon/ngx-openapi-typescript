@@ -42,8 +42,11 @@ export class PetListComponent {
     baseUrl: 'https://api.example.com',
   });
 
-  // Reactive GET (default) — re-fetches when the signals read inside the lambda change
-  protected readonly pets = this.api('/pets', () => ({
+  // Simple GET — no params required, requestFn can be omitted
+  protected readonly pets = this.api('/pets');
+
+  // Reactive GET with params — re-fetches when the signals read inside the lambda change
+  protected readonly petsLimited = this.api('/pets', () => ({
     params: { query: { limit: 10 } },
   }));
 

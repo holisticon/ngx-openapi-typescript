@@ -235,6 +235,19 @@ describe('createOpenApiResource', () => {
     req.flush([]);
   });
 
+  it('makes a GET request without requestFn', () => {
+    const openapiResource = TestBed.runInInjectionContext(() =>
+      createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
+    );
+
+    TestBed.runInInjectionContext(() => openapiResource('/pets',));
+
+    TestBed.tick();
+    const req = httpTesting.expectOne('https://api.example.com/pets');
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
   it('GET resource includes query params', () => {
     const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),

@@ -1,3 +1,4 @@
+import type { HttpContext, HttpHeaders } from '@angular/common/http';
 import type {
   HttpMethod,
   IsOperationRequestBodyOptional,
@@ -5,7 +6,6 @@ import type {
   RequestBodyJSON,
   SuccessResponseJSON,
 } from 'openapi-typescript-helpers';
-import type { HttpContext, HttpHeaders } from '@angular/common/http';
 
 export type { HttpMethod, PathsWithMethod, RequestBodyJSON, SuccessResponseJSON };
 
@@ -21,8 +21,8 @@ export type PathParameters<Op> = Op extends {
   parameters: { path?: infer P };
 }
   ? NonNullable<P> extends Record<string, unknown>
-    ? NonNullable<P>
-    : never
+  ? NonNullable<P>
+  : never
   : never;
 
 /** Extract query parameters from an OpenAPI operation */
@@ -30,24 +30,24 @@ export type QueryParameters<Op> = Op extends {
   parameters: { query?: infer Q };
 }
   ? NonNullable<Q> extends Record<string, unknown>
-    ? NonNullable<Q>
-    : never
+  ? NonNullable<Q>
+  : never
   : never;
 
 /** Check if a type has required (non-optional) keys */
-type HasRequiredKeys<T> = [T] extends [never]
+export type HasRequiredKeys<T> = [T] extends [never]
   ? false
   : ({ [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T]) extends never
-    ? false
-    : true;
+  ? false
+  : true;
 
 /** Conditionally adds a key to the object; makes it required if T has required keys */
 type ParamEntry<K extends string, T> = [T] extends [never]
   ? // eslint-disable-next-line @typescript-eslint/ban-types
-    {}
+  {}
   : HasRequiredKeys<T> extends true
-    ? { [P in K]: T }
-    : { [P in K]?: T };
+  ? { [P in K]: T }
+  : { [P in K]?: T };
 
 /** Inner `{ path?, query? }` object for an OpenAPI operation */
 export type OperationParamsObject<Op> = ParamEntry<'path', PathParameters<Op>> &
@@ -57,8 +57,8 @@ export type OperationParamsObject<Op> = ParamEntry<'path', PathParameters<Op>> &
 export type OperationBody<Op> = [RequestBodyJSON<Op>] extends [never]
   ? { body?: never }
   : IsOperationRequestBodyOptional<Op> extends true
-    ? { body?: RequestBodyJSON<Op> }
-    : { body: RequestBodyJSON<Op> };
+  ? { body?: RequestBodyJSON<Op> }
+  : { body: RequestBodyJSON<Op> };
 
 /** Common HTTP request options */
 export interface OpenApiRequestOptions {
