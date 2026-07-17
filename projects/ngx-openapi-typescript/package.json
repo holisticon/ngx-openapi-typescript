@@ -1,5 +1,5 @@
 {
-  "name": "ngx-openapi-resource",
+  "name": "ngx-openapi-typescript",
   "version": "0.0.1",
   "peerDependencies": {
     "@angular/common": "^21.2.0",

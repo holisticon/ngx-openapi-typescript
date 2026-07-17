@@ -1,5 +1,5 @@
 /*
- * Public API Surface of ngx-openapi-resource
+ * Public API Surface of ngx-openapi-typescript
  */
 
 export { createOpenApiResource } from './lib/open-api-resource';

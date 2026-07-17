@@ -1,6 +1,6 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
-import { createOpenApiResource, OpenApiHttpClient } from 'ngx-openapi-resource';
+import { createOpenApiResource, OpenApiHttpClient } from 'ngx-openapi-typescript';
 import { components, paths } from './api.types';
 
 type Todo = components['schemas']['Todo'];
@@ -11,7 +11,7 @@ type NewTodo = components['schemas']['NewTodo'];
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [JsonPipe],
   template: `
-    <h1>ngx-openapi-resource Demo</h1>
+    <h1>ngx-openapi-typescript Demo</h1>
 
     <section>
       <h2><code>createOpenApiResource</code> — Reactive GET</h2>
