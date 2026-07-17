@@ -2,8 +2,8 @@
   "name": "ngx-openapi-typescript",
   "version": "0.0.1",
   "peerDependencies": {
-    "@angular/common": "^21.2.0",
-    "@angular/core": "^21.2.0",
+    "@angular/common": "^21.2.0 || ^22.0.0",
+    "@angular/core": "^21.2.0 || ^22.0.0",
     "openapi-typescript-helpers": "^0.1.0"
   },
   "dependencies": {
