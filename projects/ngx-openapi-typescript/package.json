@@ -1,9 +1,10 @@
 {
-  "name": "ngx-openapi-resource",
+  "name": "ngx-openapi-typescript",
   "version": "0.0.1",
   "peerDependencies": {
     "@angular/common": "^21.2.0",
-    "@angular/core": "^21.2.0"
+    "@angular/core": "^21.2.0",
+    "openapi-typescript-helpers": "^0.1.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"

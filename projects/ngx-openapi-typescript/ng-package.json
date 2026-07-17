@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/ng-packagr/ng-package.schema.json",
-  "dest": "../../dist/ngx-openapi-resource",
+  "dest": "../../dist/ngx-openapi-typescript",
   "lib": {
     "entryFile": "src/public-api.ts"
   }

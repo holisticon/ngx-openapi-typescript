@@ -1,12 +1,13 @@
 {
-  "name": "@ngx-openapi-resource/workspace",
+  "name": "@ngx-openapi-typescript/workspace",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "generate:demo": "openapi-typescript projects/demo/openapi.yaml -o projects/demo/src/app/api.types.ts"
   },
   "private": true,
   "packageManager": "npm@11.8.0",
@@ -26,6 +27,8 @@
     "@angular/compiler-cli": "^21.2.0",
     "jsdom": "^28.0.0",
     "ng-packagr": "^21.2.0",
+    "openapi-typescript": "^7.13.0",
+    "openapi-typescript-helpers": "^0.1.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

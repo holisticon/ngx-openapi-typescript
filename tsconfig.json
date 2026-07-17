@@ -8,7 +8,9 @@
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "paths": {
-      "ngx-openapi-resource": ["./dist/ngx-openapi-resource"]
+      "ngx-openapi-typescript": [
+        "./dist/ngx-openapi-typescript"
+      ]
     },
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
@@ -27,10 +29,10 @@
   "files": [],
   "references": [
     {
-      "path": "./projects/ngx-openapi-resource/tsconfig.lib.json"
+      "path": "./projects/ngx-openapi-typescript/tsconfig.lib.json"
     },
     {
-      "path": "./projects/ngx-openapi-resource/tsconfig.spec.json"
+      "path": "./projects/ngx-openapi-typescript/tsconfig.spec.json"
     },
     {
       "path": "./projects/demo/tsconfig.app.json"
