@@ -57,8 +57,5 @@ jobs:
       - name: Build library
         run: npx ng build ngx-openapi-typescript
 
-      - name: Copy README to library package
-        run: cp README.md dist/ngx-openapi-typescript/README.md
-
       - name: Build demo app
         run: npx ng build demo

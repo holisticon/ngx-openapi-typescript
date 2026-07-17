@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm test -- --watch=false
       - run: npm run build -- ngx-openapi-typescript
+      - name: Copy README to library package
+        run: cp README.md dist/ngx-openapi-typescript/README.md
 
       - run: npm publish
         working-directory: dist/ngx-openapi-typescript
