@@ -51,7 +51,7 @@ type MethodsOfPath<Paths, Path extends keyof Paths> = {
 }[HttpMethod];
 
 /** The callable type returned by `createOpenApiResource` */
-export interface OpenApiResourceFactory<Paths extends PathRecord> {
+export interface OpenApiResource<Paths extends PathRecord> {
   /**
    * Creates a reactive resource for an OpenAPI endpoint with an explicit HTTP method.
    *
@@ -111,7 +111,7 @@ export interface OpenApiResourceFactory<Paths extends PathRecord> {
  */
 export function createOpenApiResource<Paths extends PathRecord>(
   config?: OpenApiResourceConfig,
-): OpenApiResourceFactory<Paths> {
+): OpenApiResource<Paths> {
   const baseUrl = config?.baseUrl ?? '';
 
   return ((path: string, requestFn: () => unknown | undefined, options?: OpenApiResourceCallOptions<unknown>) => {
@@ -134,5 +134,5 @@ export function createOpenApiResource<Paths extends PathRecord>(
       },
       options,
     );
-  }) as OpenApiResourceFactory<Paths>;
+  }) as OpenApiResource<Paths>;
 }

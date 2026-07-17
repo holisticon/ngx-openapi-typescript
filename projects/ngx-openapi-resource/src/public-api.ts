@@ -4,8 +4,7 @@
 
 export { createOpenApiResource } from './lib/open-api-resource';
 export type {
-  OpenApiResourceCallOptions, OpenApiResourceConfig,
-  OpenApiResourceFactory
+  OpenApiResource, OpenApiResourceCallOptions, OpenApiResourceConfig
 } from './lib/open-api-resource';
 
 export { OpenApiHttpClient } from './lib/open-api-http-client';

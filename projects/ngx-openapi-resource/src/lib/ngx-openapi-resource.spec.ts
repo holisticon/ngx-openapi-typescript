@@ -223,11 +223,11 @@ describe('createOpenApiResource', () => {
   afterEach(() => httpTesting.verify());
 
   it('makes a GET request to the correct URL', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
 
-    TestBed.runInInjectionContext(() => api('/pets', () => ({})));
+    TestBed.runInInjectionContext(() => openapiResource('/pets', () => ({})));
 
     TestBed.tick();
     const req = httpTesting.expectOne('https://api.example.com/pets');
@@ -236,12 +236,12 @@ describe('createOpenApiResource', () => {
   });
 
   it('GET resource includes query params', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
 
     TestBed.runInInjectionContext(() =>
-      api('/pets', () => ({ params: { query: { limit: 5 } } })),
+      openapiResource('/pets', () => ({ params: { query: { limit: 5 } } })),
     );
 
     TestBed.tick();
@@ -253,12 +253,12 @@ describe('createOpenApiResource', () => {
   });
 
   it('GET resource substitutes path params into the URL', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
 
     TestBed.runInInjectionContext(() =>
-      api('/pets/{petId}', () => ({ params: { path: { petId: 42 } } })),
+      openapiResource('/pets/{petId}', () => ({ params: { path: { petId: 42 } } })),
     );
 
     TestBed.tick();
@@ -268,13 +268,13 @@ describe('createOpenApiResource', () => {
   });
 
   it('resource is idle and makes no request when requestFn returns undefined', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
 
     const enabled = signal(false);
     const resource = TestBed.runInInjectionContext(() =>
-      api('/pets', () => (enabled() ? {} : undefined)),
+      openapiResource('/pets', () => (enabled() ? {} : undefined)),
     );
 
     TestBed.tick();
@@ -283,13 +283,13 @@ describe('createOpenApiResource', () => {
   });
 
   it('POST resource sends correct method and body', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
     const newPet: NewPet = { name: 'Buddy' };
 
     TestBed.runInInjectionContext(() =>
-      api('/pets', () => ({ body: newPet }), { method: 'post' }),
+      openapiResource('/pets', () => ({ body: newPet }), { method: 'post' }),
     );
 
     TestBed.tick();
@@ -300,13 +300,13 @@ describe('createOpenApiResource', () => {
   });
 
   it('resource re-fetches when signal changes', () => {
-    const api = TestBed.runInInjectionContext(() =>
+    const openapiResource = TestBed.runInInjectionContext(() =>
       createOpenApiResource<paths>({ baseUrl: 'https://api.example.com' }),
     );
     const petId = signal(1);
 
     TestBed.runInInjectionContext(() =>
-      api('/pets/{petId}', () => ({ params: { path: { petId: petId() } } })),
+      openapiResource('/pets/{petId}', () => ({ params: { path: { petId: petId() } } })),
     );
 
     TestBed.tick();
