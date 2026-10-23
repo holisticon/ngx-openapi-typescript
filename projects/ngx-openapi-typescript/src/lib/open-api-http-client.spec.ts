@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpBackend, HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
     HttpTestingController,
     provideHttpClientTesting,
@@ -145,5 +145,56 @@ describe('OpenApiHttpClient', () => {
         const req = httpTesting.expectOne('https://api.example.com/pets/1');
         expect(req.request.method).toBe('DELETE');
         req.flush(null);
+    });
+});
+
+describe('OpenApiHttpClient HTTP client selection', () => {
+    let httpTesting: HttpTestingController;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                provideHttpClient(withInterceptors([
+                    (request, next) => next(request.clone({
+                        setHeaders: { 'X-Test-Interceptor': 'applied' },
+                    })),
+                ])),
+                provideHttpClientTesting(),
+                TestApiClient,
+            ],
+        });
+        httpTesting = TestBed.inject(HttpTestingController);
+    });
+
+    afterEach(() => httpTesting.verify());
+
+    it('uses the injected client and its interceptors by default', () => {
+        const client = TestBed.inject(TestApiClient);
+        client.get('/pets').subscribe();
+
+        const request = httpTesting.expectOne('https://api.example.com/pets');
+        expect(request.request.headers.get('X-Test-Interceptor')).toBe('applied');
+        request.flush([]);
+    });
+
+    it('uses an explicit client outside an injection context and bypasses interceptors with HttpBackend', () => {
+        const httpClient = new HttpClient(TestBed.inject(HttpBackend));
+        // Deliberately construct without TestBed.runInInjectionContext.
+        const client = new OpenApiHttpClient<paths>({
+            baseUrl: 'https://public.example.com',
+            httpClient,
+        });
+        const pets: Pet[] = [{ id: 1, name: 'Fido' }];
+        let received: Pet[] | undefined;
+
+        client.get('/pets', { params: { query: { limit: 5 } } }).subscribe((result) => {
+            received = result;
+        });
+
+        const request = httpTesting.expectOne('https://public.example.com/pets?limit=5');
+        expect(request.request.method).toBe('GET');
+        expect(request.request.headers.has('X-Test-Interceptor')).toBe(false);
+        request.flush(pets);
+        expect(received).toEqual(pets);
     });
 });

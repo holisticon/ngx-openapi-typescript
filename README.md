@@ -124,6 +124,41 @@ export class PetDetailComponent {
 }
 ```
 
+#### Custom HTTP client
+
+By default, `OpenApiHttpClient` injects Angular's configured `HttpClient` and uses
+its interceptors. If you need a second API client with a differently configured
+`HttpClient`, pass that instance through the `httpClient` option. Both clients
+retain the same generated endpoint, parameter, body, and response types.
+
+For example, inside an Angular injection context:
+
+```ts
+import { HttpBackend, HttpClient } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { OpenApiHttpClient } from 'ngx-openapi-typescript';
+import type { paths } from './api.types';
+
+// Uses Angular's default HttpClient; requires an injection context.
+const api = new OpenApiHttpClient<paths>({
+  baseUrl: 'https://api.example.com',
+});
+
+// Uses a separate HttpClient instance.
+const secondApi = new OpenApiHttpClient<paths>({
+  baseUrl: 'https://second-api.example.com',
+  httpClient: new HttpClient(inject(HttpBackend)),
+});
+```
+
+When you supply an existing `HttpClient` instance, `OpenApiHttpClient` can also be
+constructed outside an Angular injection context. The example above requires one
+because it calls `inject(HttpBackend)`.
+
+`createOpenApiResource` cannot accept a custom `HttpClient`, because Angular's
+underlying `httpResource` does not offer this option. See
+[Angular issue #62616](https://github.com/angular/angular/issues/62616).
+
 ## Development
 
 ```sh
