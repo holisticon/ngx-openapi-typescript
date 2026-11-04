@@ -1,15 +1,21 @@
 import {
   HttpContext,
   HttpHeaders,
-  HttpResourceOptions,
-  HttpResourceRef,
+  type HttpResourceOptions,
+  type HttpResourceRef,
   httpResource,
 } from '@angular/common/http';
-import type { PathsWithMethod, SuccessResponseJSON } from 'openapi-typescript-helpers';
-import type { HasRequiredKeys, HttpMethod, OpenApiOperationRequest, PathRecord } from './types';
-import { buildUrl as _buildUrl, toHttpParams as _toHttpParams } from './url-utils';
+import type { PathsWithMethod } from 'openapi-typescript-helpers';
+import type {
+  HasRequiredKeys,
+  HttpMethod,
+  OpenApiOperationRequest,
+  OpenApiResponseBody,
+  OpenApiResponseType,
+  PathRecord,
+} from './types';
+import { buildUrl, toHttpParams } from './url-utils';
 
-// Re-export helpers so consumers and tests can import them from this module.
 export { buildUrl, toHttpParams } from './url-utils';
 
 /** Configuration for creating an OpenAPI resource factory */
@@ -18,21 +24,280 @@ export interface OpenApiResourceConfig {
   baseUrl?: string;
 }
 
-/** Options for the resource call, extending Angular's HttpResourceOptions with an optional HTTP method */
-export type OpenApiResourceCallOptions<TValue, TError = unknown> = HttpResourceOptions<
+/**
+ * Options for the resource call, extending Angular's `HttpResourceOptions` with an
+ * optional HTTP method. `TRaw` is the decoded input type received by `parse`.
+ */
+export type OpenApiResourceCallOptions<TValue, TRaw = unknown> = HttpResourceOptions<
   TValue,
-  TError
+  TRaw
 > & { method?: HttpMethod };
 
 /** Extracts the operation type for a given path and method */
 type OpOf<Paths, Path extends keyof Paths, Method extends string> = Paths[Path] extends {
   [K in Method]: infer Op;
 }
-  ? Op
+  ? NonNullable<Op>
   : never;
 
-/** Coerces the request object to a plain shape for URL building */
-function toRequestShape(req: unknown): {
+/** Extract which HTTP methods a given path supports */
+type MethodsOfPath<Paths, Path extends keyof Paths> = {
+  [M in HttpMethod]: Paths[Path] extends { [K in M]: unknown } ? M : never;
+}[HttpMethod];
+
+/**
+ * Narrows to paths whose operation has no required parameters or body,
+ * allowing the request callback to be omitted.
+ */
+type PathsWithOptionalRequest<Paths extends PathRecord, Method extends HttpMethod> = {
+  [P in PathsWithMethod<Paths, Method> & keyof Paths]: HasRequiredKeys<
+    OpenApiOperationRequest<OpOf<Paths, P, Method>>
+  > extends true
+  ? never
+  : P;
+}[PathsWithMethod<Paths, Method> & keyof Paths];
+
+type RawOf<Format extends OpenApiResponseType> = Format extends 'json'
+  ? unknown
+  : OpenApiResponseBody<never, Format>;
+
+/**
+ * Callable resource constructor with generated endpoint and request types.
+ * Defaults to the decoded response type; `parse` infers a transformed result.
+ * A defined `defaultValue` removes the implicit `undefined` from the value type.
+ */
+export interface OpenApiResourceCall<
+  Paths extends PathRecord,
+  Format extends OpenApiResponseType = 'json',
+> {
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Infers the result type from `parse`.
+   * Uses the supplied default value while idle or loading.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>, TResult>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, Method>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { method: Method } & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Uses the supplied default value while idle or loading.
+   */
+  <
+    Path extends keyof Paths & string,
+    Method extends MethodsOfPath<Paths, Path>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, Method>, Format>,
+  >(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, Method>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { method: Method } & {
+      defaultValue: NoInfer<TResult>;
+    },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Infers the result type from `parse`.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>, TResult>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, Method>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { method: Method },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   */
+  <
+    Path extends keyof Paths & string,
+    Method extends MethodsOfPath<Paths, Path>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, Method>, Format>,
+  >(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, Method>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { method: Method },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Infers the result type from `parse`.
+   * Uses the supplied default value while idle or loading.
+   */
+  <Path extends PathsWithMethod<Paths, 'get'> & keyof Paths, TResult>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, 'get'>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Uses the supplied default value while idle or loading.
+   */
+  <
+    Path extends PathsWithMethod<Paths, 'get'> & keyof Paths,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, 'get'>, Format>,
+  >(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, 'get'>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   * Infers the result type from `parse`.
+   */
+  <Path extends PathsWithMethod<Paths, 'get'> & keyof Paths, TResult>(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, 'get'>> | undefined,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Re-fetches when signals read in `requestFn` change; `undefined` makes the resource idle.
+   */
+  <
+    Path extends PathsWithMethod<Paths, 'get'> & keyof Paths,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, 'get'>, Format>,
+  >(
+    path: Path,
+    requestFn: () => OpenApiOperationRequest<OpOf<Paths, Path, 'get'>> | undefined,
+    options?: HttpResourceOptions<TResult, RawOf<Format>>,
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Infers the result type from `parse`.
+   * Uses the supplied default value while idle or loading.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>, TResult>(
+    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { method: Method } & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Uses the supplied default value while idle or loading.
+   */
+  <
+    Path extends keyof Paths & string,
+    Method extends MethodsOfPath<Paths, Path>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, Method>, Format>,
+  >(
+    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { method: Method } & {
+      defaultValue: NoInfer<TResult>;
+    },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Infers the result type from `parse`.
+   */
+  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>, TResult>(
+    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { method: Method },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive resource with an explicit method supported by the endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   */
+  <
+    Path extends keyof Paths & string,
+    Method extends MethodsOfPath<Paths, Path>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, Method>, Format>,
+  >(
+    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { method: Method },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Infers the result type from `parse`.
+   * Uses the supplied default value while idle or loading.
+   */
+  <Path extends PathsWithOptionalRequest<Paths, 'get'>, TResult>(
+    path: Path,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    } & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Uses the supplied default value while idle or loading.
+   */
+  <
+    Path extends PathsWithOptionalRequest<Paths, 'get'>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, 'get'>, Format>,
+  >(
+    path: Path,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & { defaultValue: NoInfer<TResult> },
+  ): HttpResourceRef<TResult>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   * Infers the result type from `parse`.
+   */
+  <Path extends PathsWithOptionalRequest<Paths, 'get'>, TResult>(
+    path: Path,
+    options: HttpResourceOptions<TResult, RawOf<Format>> & {
+      parse: (value: RawOf<Format>) => TResult;
+    },
+  ): HttpResourceRef<TResult | undefined>;
+
+  /**
+   * Creates a reactive GET resource for an OpenAPI endpoint.
+   * Only available when the operation has no required parameters or body; fetches immediately.
+   */
+  <
+    Path extends PathsWithOptionalRequest<Paths, 'get'>,
+    TResult = OpenApiResponseBody<OpOf<Paths, Path, 'get'>, Format>,
+  >(
+    path: Path,
+    options?: HttpResourceOptions<TResult, RawOf<Format>>,
+  ): HttpResourceRef<TResult | undefined>;
+}
+
+/** The callable JSON factory returned by `createOpenApiResource`, with raw response variants. */
+export interface OpenApiResource<Paths extends PathRecord> extends OpenApiResourceCall<Paths> {
+  /** Creates a resource that decodes the response as a `Blob`. */
+  blob: OpenApiResourceCall<Paths, 'blob'>;
+  /** Creates a resource that decodes the response as a `string`. */
+  text: OpenApiResourceCall<Paths, 'text'>;
+  /** Creates a resource that decodes the response as an `ArrayBuffer`. */
+  arrayBuffer: OpenApiResourceCall<Paths, 'arraybuffer'>;
+}
+
+type RequestShape = {
   params?: {
     path?: Record<string, string | number | boolean>;
     query?: Record<string, string | number | boolean | null | undefined>;
@@ -41,93 +306,21 @@ function toRequestShape(req: unknown): {
   headers?: HttpHeaders | Record<string, string | ReadonlyArray<string>>;
   context?: HttpContext;
   withCredentials?: boolean;
-} {
-  return ((req ?? {}) as ReturnType<typeof toRequestShape>);
-}
-
-/** Extract which HTTP methods a given path supports */
-type MethodsOfPath<Paths, Path extends keyof Paths> = {
-  [M in HttpMethod]: Paths[Path] extends { [K in M]: unknown } ? M : never;
-}[HttpMethod];
-
-/**
- * Narrows to only those paths (for the given method) where the full request object
- * has no required keys — i.e. `requestFn` can be safely omitted.
- */
-type PathsWithOptionalRequest<Paths extends PathRecord, Method extends HttpMethod> = {
-  [P in PathsWithMethod<Paths, Method> & keyof Paths]: HasRequiredKeys<
-    OpenApiOperationRequest<NonNullable<OpOf<Paths, P, Method>>>
-  > extends true
-  ? never
-  : P;
-}[PathsWithMethod<Paths, Method> & keyof Paths];
-
-/** The callable type returned by `createOpenApiResource` */
-export interface OpenApiResource<Paths extends PathRecord> {
-  /**
-   * Creates a reactive resource for an OpenAPI endpoint with an explicit HTTP method.
-   *
-   * The `method` option is restricted to the methods the given path supports.
-   */
-  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>>(
-    path: Path,
-    requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, Method>>> | undefined,
-    options: OpenApiResourceCallOptions<
-      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>>,
-      unknown
-    > & { method: Method },
-  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>> | undefined>;
-
-  /**
-   * Creates a reactive GET resource for an OpenAPI endpoint (default).
-   *
-   * The resource re-fetches automatically when the signals read inside `requestFn` change.
-   * When `requestFn` returns `undefined` the resource is put into the Idle state.
-   */
-  <Path extends PathsWithMethod<Paths, 'get'> & keyof Paths>(
-    path: Path,
-    requestFn: () => OpenApiOperationRequest<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined,
-    options?: HttpResourceOptions<
-      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
-      unknown
-    >,
-  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined>;
-
-  /**
-   * Creates a reactive resource for an OpenAPI endpoint with an explicit HTTP method,
-   * omitting `requestFn`. Only available when the operation has no required parameters or body.
-   */
-  <Path extends keyof Paths & string, Method extends MethodsOfPath<Paths, Path>>(
-    path: Path extends PathsWithOptionalRequest<Paths, Method> ? Path : never,
-    options: OpenApiResourceCallOptions<
-      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>>,
-      unknown
-    > & { method: Method },
-  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, Method>>> | undefined>;
-
-  /**
-   * Creates a reactive GET resource for an OpenAPI endpoint, omitting `requestFn`.
-   * Only available when the operation has no required parameters or body.
-   * The resource fetches immediately and always stays active.
-   */
-  <Path extends PathsWithOptionalRequest<Paths, 'get'>>(
-    path: Path,
-    options?: HttpResourceOptions<
-      SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>>,
-      unknown
-    >,
-  ): HttpResourceRef<SuccessResponseJSON<NonNullable<OpOf<Paths, Path, 'get'>>> | undefined>;
-}
+  reportProgress?: boolean;
+};
 
 /**
  * Creates a type-safe callable factory for Angular `httpResource`s backed by an OpenAPI schema.
  *
- * Must be called inside an Angular injection context (e.g. component/service field initializer
- * or constructor), because the returned function uses `httpResource` internally.
+ * Must be called inside an Angular injection context (e.g. component/service
+ * field initializer or constructor), because the returned function uses `httpResource` internally.
  *
- * The returned function defaults to GET. Pass `{ method: 'post' }` (or other method) in the
- * options to use a different HTTP method. Note: Angular recommends using `httpResource` only
- * for reads; prefer `OpenApiHttpClient` for mutations.
+ * The returned function defaults to JSON GET. Use `.blob()`, `.text()` or `.arrayBuffer()`
+ * to select raw response decoding. Request callbacks re-run when their signal dependencies
+ * change; returning `undefined` puts the resource into the Idle state without making a request.
+ *
+ * Pass `{ method: 'post' }` (or another supported method) in the options to override GET.
+ * Angular recommends using `httpResource` for reads; prefer `OpenApiHttpClient` for mutations.
  *
  * @example
  * ```ts
@@ -138,12 +331,24 @@ export interface OpenApiResource<Paths extends PathRecord> {
  * // Reactive GET resource (default)
  * const pets = api('/pets', () => ({ params: { query: { limit: 10 } } }));
  *
- * // GET with path params (signal-driven)
+ * // GET with signal-driven path parameters
  * const petId = signal(1);
  * const pet = api('/pets/{petId}', () => ({ params: { path: { petId: petId() } } }));
  *
  * // Explicit method override (prefer OpenApiHttpClient for mutations)
  * const created = api('/pets', () => ({ body: { name: 'Buddy' } }), { method: 'post' });
+ * ```
+ *
+ * @example
+ * ```ts
+ * const pdf = api.blob('/documents/{id}', () => ({
+ *   params: { path: { id: documentId() } },
+ * })); // HttpResourceRef<Blob | undefined>
+ *
+ * const length = api.text('/export', {
+ *   parse: text => text.length,
+ *   defaultValue: 0,
+ * }); // HttpResourceRef<number>
  * ```
  */
 export function createOpenApiResource<Paths extends PathRecord>(
@@ -151,32 +356,51 @@ export function createOpenApiResource<Paths extends PathRecord>(
 ): OpenApiResource<Paths> {
   const baseUrl = config?.baseUrl ?? '';
 
-  return ((
-    path: string,
-    reqFnOrOpts?: (() => unknown) | OpenApiResourceCallOptions<unknown>,
-    maybeOpts?: OpenApiResourceCallOptions<unknown>,
-  ) => {
-    const hasRequestFn = typeof reqFnOrOpts === 'function';
-    const requestFn = hasRequestFn ? reqFnOrOpts : () => ({});
-    const options = hasRequestFn ? maybeOpts : (reqFnOrOpts as OpenApiResourceCallOptions<unknown> | undefined);
-    const method = (options?.method ?? 'get').toUpperCase();
-
-    return httpResource(
-      () => {
-        const req = requestFn();
-        if (req === undefined) return undefined;
-        const r = toRequestShape(req);
+  function constructorFor<Format extends OpenApiResponseType>(
+    format: Format,
+  ): OpenApiResourceCall<Paths, Format> {
+    const create = (
+      path: string,
+      reqFnOrOpts?: (() => unknown) | OpenApiResourceCallOptions<unknown>,
+      maybeOpts?: OpenApiResourceCallOptions<unknown>,
+    ) => {
+      const requestFn = typeof reqFnOrOpts === 'function' ? reqFnOrOpts : () => ({});
+      const options = typeof reqFnOrOpts === 'function' ? maybeOpts : reqFnOrOpts;
+      const { method = 'get', ...resourceOptions } = options ?? {};
+      const request = () => {
+        const value = requestFn();
+        if (value === undefined) return undefined;
+        const r = value as RequestShape;
         return {
-          url: _buildUrl(baseUrl, path, r.params?.path),
-          method,
+          url: buildUrl(baseUrl, path, r.params?.path),
+          method: method.toUpperCase(),
           body: r.body,
-          params: _toHttpParams(r.params?.query),
+          params: toHttpParams(r.params?.query),
           headers: r.headers,
           context: r.context,
           withCredentials: r.withCredentials,
+          reportProgress: r.reportProgress,
         };
-      },
-      options,
-    );
-  }) as OpenApiResource<Paths>;
+      };
+
+      switch (format) {
+        case 'blob':
+          return httpResource.blob(request, resourceOptions);
+        case 'text':
+          return httpResource.text(request, resourceOptions);
+        case 'arraybuffer':
+          return httpResource.arrayBuffer(request, resourceOptions);
+        default:
+          return httpResource(request, resourceOptions);
+      }
+    };
+    // The overloads associate each endpoint and decoder with its options/result.
+    return create as OpenApiResourceCall<Paths, Format>;
+  }
+
+  return Object.assign(constructorFor('json'), {
+    blob: constructorFor('blob'),
+    text: constructorFor('text'),
+    arrayBuffer: constructorFor('arraybuffer'),
+  });
 }

@@ -159,6 +159,115 @@ because it calls `inject(HttpBackend)`.
 underlying `httpResource` does not offer this option. See
 [Angular issue #62616](https://github.com/angular/angular/issues/62616).
 
+### Response formats and full responses
+
+`OpenApiHttpClient` follows Angular's `responseType` and `observe` options on
+`get`, `post`, `put`, `patch`, and `delete`.
+
+| `responseType`      | Response body type                      |
+| ------------------- | --------------------------------------- |
+| omitted or `'json'` | Generated OpenAPI success-response type |
+| `'blob'`            | `Blob`                                  |
+| `'arraybuffer'`     | `ArrayBuffer`                           |
+| `'text'`            | `string`                                |
+
+| `observe`           | Return type                      |
+| ------------------- | -------------------------------- |
+| omitted or `'body'` | `Observable<Body>`               |
+| `'response'`        | `Observable<HttpResponse<Body>>` |
+| `'events'`          | `Observable<HttpEvent<Body>>`    |
+
+For example, an endpoint whose schema declares `application/pdf` with
+`type: string` and `format: binary` can be read as a blob:
+
+```ts
+api.get('/documents/{id}', {
+  params: { path: { id: 123 } },
+  responseType: 'blob',
+}); // Observable<Blob>
+
+api
+  .get('/documents/{id}', {
+    params: { path: { id: 123 } },
+    responseType: 'blob',
+    observe: 'response',
+  })
+  .subscribe((response) => {
+    const disposition = response.headers.get('Content-Disposition');
+    const pdf = response.body; // Blob | null, as in Angular's HttpResponse
+  });
+```
+
+Use events and `reportProgress` when you need download progress:
+
+```ts
+import { HttpEventType } from '@angular/common/http';
+
+api
+  .get('/documents/{id}', {
+    params: { path: { id: 123 } },
+    responseType: 'blob',
+    observe: 'events',
+    reportProgress: true,
+  })
+  .subscribe((event) => {
+    if (event.type === HttpEventType.DownloadProgress) {
+      console.log(event.loaded, event.total); // total can be undefined
+    } else if (event.type === HttpEventType.Response) {
+      console.log(event.body); // Blob | null
+    }
+  });
+```
+
+Raw response formats are available on any valid endpoint, including JSON
+endpoints. The selected decoder determines the body type, while paths,
+parameters, and request bodies remain checked against the generated schema.
+
+### Raw response resources
+
+The factory returned by `createOpenApiResource` mirrors Angular's resource
+sub-functions.
+
+```ts
+const resource = createOpenApiResource<paths>({ baseUrl: '/api' });
+
+const pdf = resource.blob('/documents/{id}', () => ({
+  params: { path: { id: documentId() } },
+  reportProgress: true,
+})); // HttpResourceRef<Blob | undefined>
+
+const text = resource.text('/export');
+// HttpResourceRef<string | undefined>
+
+const bytes = resource.arrayBuffer('/export');
+// HttpResourceRef<ArrayBuffer | undefined>
+```
+
+Each variant supports the same optional request callback, method override, and
+idle state (`undefined` from the callback) as the JSON factory. Resources expose
+`headers()`, `statusCode()`, and `progress()` directly, so they do not take an
+`observe` option.
+
+`parse` receives the raw decoded type and can synchronously transform it.
+A defined `defaultValue` removes the implicit `undefined` from the value type:
+
+```ts
+const length = resource.text('/export', {
+  parse: (text) => text.length,
+  defaultValue: 0,
+}); // HttpResourceRef<number>
+
+const size = resource.blob(
+  '/documents/{id}',
+  () => ({
+    params: { path: { id: documentId() } },
+  }),
+  {
+    parse: (blob) => blob.size,
+  },
+); // HttpResourceRef<number | undefined>
+```
+
 ## Development
 
 ```sh
@@ -167,6 +276,9 @@ ng build ngx-openapi-typescript
 
 # Run tests
 ng test ngx-openapi-typescript
+
+# Check compile-time API assertions explicitly
+npx tsc -p projects/ngx-openapi-typescript/tsconfig.spec.json --noEmit
 
 # Start the demo app
 ng serve demo

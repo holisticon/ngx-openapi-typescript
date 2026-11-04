@@ -6,6 +6,24 @@ info:
 servers:
   - url: https://jsonplaceholder.typicode.com
 paths:
+  /demo.pdf:
+    get:
+      operationId: downloadDemoPdf
+      summary: Download the local demo PDF
+      servers:
+        - url: /
+      responses:
+        '200':
+          description: A deterministic PDF served by the demo application.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
   /todos:
     get:
       operationId: listTodos

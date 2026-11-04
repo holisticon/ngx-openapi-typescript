@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/demo.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the local demo PDF */
+        get: operations["downloadDemoPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/todos": {
         parameters: {
             query?: never;
@@ -65,6 +82,27 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    downloadDemoPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A deterministic PDF served by the demo application. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
     listTodos: {
         parameters: {
             query?: {

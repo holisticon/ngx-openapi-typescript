@@ -1,4 +1,4 @@
-import type { HttpContext, HttpHeaders } from '@angular/common/http';
+import type { HttpContext, HttpEvent, HttpHeaders, HttpResponse } from '@angular/common/http';
 import type {
   HttpMethod,
   IsOperationRequestBodyOptional,
@@ -65,7 +65,43 @@ export interface OpenApiRequestOptions {
   headers?: HttpHeaders | Record<string, string | ReadonlyArray<string>>;
   context?: HttpContext;
   withCredentials?: boolean;
+  reportProgress?: boolean;
 }
+
+/** Angular response decoding modes. JSON is inferred from the OpenAPI operation. */
+export type OpenApiResponseType = 'json' | 'blob' | 'arraybuffer' | 'text';
+export type OpenApiObserve = 'body' | 'response' | 'events';
+
+export type OpenApiResponseBody<
+  Op,
+  Format extends OpenApiResponseType = 'json',
+> = Format extends 'blob'
+  ? Blob
+  : Format extends 'arraybuffer'
+  ? ArrayBuffer
+  : Format extends 'text'
+  ? string
+  : SuccessResponseJSON<Op & {}>;
+
+export type OpenApiObservedValue<
+  Body,
+  Observe extends OpenApiObserve = 'body',
+> = Observe extends 'response'
+  ? HttpResponse<Body>
+  : Observe extends 'events'
+  ? HttpEvent<Body>
+  : Body;
+
+/**
+ * Imperative-client options; resources select their decoder through sub-functions.
+ * Non-default response and observation modes require explicit runtime options.
+ */
+export type OpenApiHttpRequestOptions<
+  Format extends OpenApiResponseType = 'json',
+  Observe extends OpenApiObserve = 'body',
+> = OpenApiRequestOptions &
+  (Format extends 'json' ? { responseType?: Format } : { responseType: Format }) &
+  (Observe extends 'body' ? { observe?: Observe } : { observe: Observe });
 
 /** Full typed request for an OpenAPI operation */
 export type OpenApiOperationRequest<Op> = ParamEntry<'params', OperationParamsObject<Op>> &
